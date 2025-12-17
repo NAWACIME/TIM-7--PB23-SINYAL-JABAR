@@ -28,17 +28,18 @@ st.markdown("""
 # --- 3. LOAD DATA & LOGIC CLUSTERING (4 Variabel Sesuai .ipynb) ---
 @st.cache_data
 def get_clustered_data():
+    # Memuat file
     df = pd.read_csv("Sinyal.csv")
     
-    # VARIABEL MODELING: Sinyal Kuat, Lemah, Tidak Ada, dan 4G/LTE
+    # VARIABEL MODELING: Sesuai dengan notebook kelompok 7
     features = ['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']
     X = df[features]
     
-    # Standarisasi Data
+    # Standarisasi Data (Penting agar cluster akurat)
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # Menggunakan K=4 (Sesuai hasil Elbow Method di notebook Anda)
+    # Menggunakan K=4 (Sesuai hasil Elbow Method di notebook)
     kmeans = KMeans(n_clusters=4, random_state=42, n_init='auto')
     df['Cluster'] = kmeans.fit_predict(X_scaled)
     
@@ -53,21 +54,20 @@ except Exception as e:
 # --- 4. SIDEBAR ---
 with st.sidebar:
     st.title("📡 Navigasi")
-    # Memilih Cluster 0, 1, 2, atau 3
     selected_cluster = st.selectbox("Pilih Opsi Cluster:", sorted(df_final['Cluster'].unique()))
     st.markdown("---")
     st.write("### 👥 Kelompok 7")
-    st.info("Naura, Maura, Mimma, Mustika")
+    st.info("1. Naura Afnandita\n2. Maura Azzahra\n3. Mimma desmaya\n4. Maustika Taulina")
 
 # --- 5. JUDUL ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>ANALISIS KUALITAS SINYAL & 4G JAWA BARAT</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Berdasarkan Pemodelan K-Means Clustering</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Filter data
 filtered_df = df_final[df_final['Cluster'] == selected_cluster]
 
-# --- 6. METRIK UTAMA (4 VARIABEL LENGKAP) ---
-# Menampilkan rata-rata performa cluster untuk ke-4 variabel
+# --- 6. METRIK UTAMA ---
 m1, m2, m3, m4, m5 = st.columns(5)
 with m1:
     st.metric("Total BTS", f"{int(filtered_df['BTS'].sum())}")
@@ -80,32 +80,44 @@ with m4:
 with m5:
     st.metric("Avg 4G/LTE", f"{filtered_df['4G/LTE'].mean():.1f}")
 
-# --- 7. VISUALISASI BAR CHART (4 VARIABEL) ---
+# --- 7. VISUALISASI GRAFIK ---
 st.markdown("---")
-st.subheader(f"📊 Perbandingan 4 Variabel Modeling di Cluster {selected_cluster}")
+col_left, col_right = st.columns([2, 1])
 
-# Menampilkan grafik batang untuk semua variabel modeling
-fig_bar = px.bar(
-    filtered_df,
-    x='KABUPATEN JAWA BARAT',
-    y=['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE'], 
-    barmode='group',
-    color_discrete_map={
-        'SINYAL KUAT': '#2ecc71',      # Hijau
-        'SINYAL LEMAH': '#f1c40f',     # Kuning
-        'TIDAK ADA SINYAL': '#e74c3c', # Merah
-        '4G/LTE': '#3498db'            # Biru
-    },
-    template="plotly_white"
-)
-fig_bar.update_layout(xaxis_title="Kabupaten/Kota", yaxis_title="Jumlah Desa")
-st.plotly_chart(fig_bar, use_container_width=True)
+with col_left:
+    st.subheader(f"📊 Perbandingan Variabel Sinyal di Cluster {selected_cluster}")
+    fig_bar = px.bar(
+        filtered_df,
+        x='KABUPATEN JAWA BARAT',
+        y=['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE'], 
+        barmode='group',
+        color_discrete_map={
+            'SINYAL KUAT': '#2ecc71',      # Hijau
+            'SINYAL LEMAH': '#f1c40f',     # Kuning
+            'TIDAK ADA SINYAL': '#e74c3c', # Merah
+            '4G/LTE': '#3498db'            # Biru
+        },
+        template="plotly_white"
+    )
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-# --- 8. TABEL DETAIL ---
+with col_right:
+    st.subheader("💡 Interpretasi Cluster")
+    # Logika sederhana untuk penjelasan cluster
+    avg_4g = filtered_df['4G/LTE'].mean()
+    avg_no_sinyal = filtered_df['TIDAK ADA SINYAL'].mean()
+    
+    if avg_4g > 500:
+        st.success("✅ **Cluster Unggul**: Wilayah ini memiliki jangkauan 4G dan sinyal kuat yang sangat luas.")
+    elif avg_no_sinyal > 50:
+        st.error("⚠️ **Cluster Prioritas**: Wilayah ini memiliki angka 'Tidak Ada Sinyal' yang cukup tinggi. Butuh perhatian infrastruktur.")
+    else:
+        st.info("ℹ️ **Cluster Berkembang**: Wilayah dengan kualitas sinyal rata-rata dan sedang dalam tahap pengembangan.")
+
+# --- 8. TABEL DATA ---
 st.markdown("---")
 st.subheader("📋 Tabel Data Cluster")
 st.dataframe(
     filtered_df[['KABUPATEN JAWA BARAT', 'BTS', 'SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']], 
     use_container_width=True
 )
-
