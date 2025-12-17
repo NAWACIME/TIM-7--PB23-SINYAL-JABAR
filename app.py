@@ -57,7 +57,7 @@ with st.sidebar:
     selected_cluster = st.selectbox("Pilih Opsi Cluster:", sorted(df_final['Cluster'].unique()))
     st.markdown("---")
     st.write("### 👥 Kelompok 7")
-    st.info("Naura, Maura, Mimma, Maustika")
+    st.info("Naura, Maura, Mimma, Mustika")
 
 # --- 5. JUDUL ---
 st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>ANALISIS KUALITAS SINYAL & 4G JAWA BARAT</h1>", unsafe_allow_html=True)
@@ -108,3 +108,4 @@ st.dataframe(
     filtered_df[['KABUPATEN JAWA BARAT', 'BTS', 'SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']], 
     use_container_width=True
 )
+
