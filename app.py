@@ -12,9 +12,23 @@ st.set_page_config(
 )
 
 # --- 2. STYLE TAMPILAN (CSS) ---
+# BAGIAN INI YANG DIUBAH UNTUK MENGGANTI WARNA FONT
 st.markdown("""
     <style>
     .stApp { background-color: #f8f9fa; }
+    
+    /* 1. Mengubah warna angka di dalam kotak Metrik (Value) */
+    [data-testid="stMetricValue"] {
+        color: #1E3A8A; /* Biru Gelap */
+        font-weight: bold;
+    }
+    
+    /* 2. Mengubah warna teks judul di dalam kotak Metrik (Label) */
+    [data-testid="stMetricLabel"] {
+        color: #333333; /* Abu-abu Tua agar terbaca jelas */
+    }
+
+    /* 3. Style Kotak Putih Metrik */
     [data-testid="stMetric"] {
         background-color: #ffffff;
         padding: 15px;
@@ -22,27 +36,24 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
     }
+    
+    /* 4. Mengubah warna font di dalam Tabel agar hitam pekat */
+    .stDataFrame {
+        color: #000000;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 3. LOAD DATA & LOGIC CLUSTERING (4 Variabel Sesuai .ipynb) ---
 @st.cache_data
 def get_clustered_data():
-    # Memuat file
     df = pd.read_csv("Sinyal.csv")
-    
-    # VARIABEL MODELING: Sesuai dengan notebook kelompok 7
     features = ['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']
     X = df[features]
-    
-    # Standarisasi Data (Penting agar cluster akurat)
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-    
-    # Menggunakan K=4 (Sesuai hasil Elbow Method di notebook)
     kmeans = KMeans(n_clusters=4, random_state=42, n_init='auto')
     df['Cluster'] = kmeans.fit_predict(X_scaled)
-    
     return df
 
 try:
@@ -92,10 +103,10 @@ with col_left:
         y=['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE'], 
         barmode='group',
         color_discrete_map={
-            'SINYAL KUAT': '#2ecc71',      # Hijau
-            'SINYAL LEMAH': '#f1c40f',     # Kuning
-            'TIDAK ADA SINYAL': '#e74c3c', # Merah
-            '4G/LTE': '#3498db'            # Biru
+            'SINYAL KUAT': '#2ecc71',
+            'SINYAL LEMAH': '#f1c40f',
+            'TIDAK ADA SINYAL': '#e74c3c',
+            '4G/LTE': '#3498db'
         },
         template="plotly_white"
     )
@@ -103,7 +114,6 @@ with col_left:
 
 with col_right:
     st.subheader("💡 Interpretasi Cluster")
-    # Logika sederhana untuk penjelasan cluster
     avg_4g = filtered_df['4G/LTE'].mean()
     avg_no_sinyal = filtered_df['TIDAK ADA SINYAL'].mean()
     
