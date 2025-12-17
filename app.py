@@ -4,134 +4,107 @@ import plotly.express as px
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-# --- KONFIGURASI HALAMAN ---
+# --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(
     page_title="Dashboard Sinyal Jabar Kelompok 7",
     page_icon="📡",
     layout="wide"
 )
 
-# --- STYLE TAMPILAN (CSS) ---
+# --- 2. STYLE TAMPILAN (CSS) ---
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { 
-        background-color: #ffffff; 
-        padding: 15px; 
-        border-radius: 10px; 
+    .stApp { background-color: #f8f9fa; }
+    [data-testid="stMetric"] {
+        background-color: #ffffff;
+        padding: 15px;
+        border-radius: 10px;
         border: 1px solid #e0e0e0;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LOAD DATA & LOGIC CLUSTERING ---
+# --- 3. LOAD DATA & LOGIC CLUSTERING (4 Variabel Sesuai .ipynb) ---
 @st.cache_data
 def get_clustered_data():
-    # Memuat file
     df = pd.read_csv("Sinyal.csv")
     
-    # Fitur Analisis
-    features = ['BTS', 'SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']
+    # VARIABEL MODELING: Sinyal Kuat, Lemah, Tidak Ada, dan 4G/LTE
+    features = ['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']
     X = df[features]
     
-    # Standarisasi & K-Means (K=5)
+    # Standarisasi Data
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
+    # Menggunakan K=4 (Sesuai hasil Elbow Method di notebook Anda)
+    kmeans = KMeans(n_clusters=4, random_state=42, n_init='auto')
     df['Cluster'] = kmeans.fit_predict(X_scaled)
     
     return df
 
-# Eksekusi Data
 try:
     df_final = get_clustered_data()
 except Exception as e:
-    st.error(f"Gagal memuat file Sinyal.csv. Pastikan file ada di folder yang sama. Error: {e}")
+    st.error(f"Gagal memuat file Sinyal.csv. Error: {e}")
     st.stop()
 
-# --- SIDEBAR (NAVIGASI) ---
+# --- 4. SIDEBAR ---
 with st.sidebar:
     st.title("📡 Navigasi")
-    # Fitur: Hanya Opsi 0, 1, 2, 3, 4
-    selected_cluster = st.selectbox("Pilih Opsi Cluster:", [0, 1, 2, 3, 4])
-    
+    # Memilih Cluster 0, 1, 2, atau 3
+    selected_cluster = st.selectbox("Pilih Opsi Cluster:", sorted(df_final['Cluster'].unique()))
     st.markdown("---")
     st.write("### 👥 Kelompok 7")
-    st.info("1. Naura Afnandita\n2. Maura Azzahra\n3. Mimma desmaya\n4. Maustika Taulina")
+    st.info("Naura, Maura, Mimma, Maustika")
 
-# --- JUDUL UTAMA ---
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>KEKUATAN SINYAL DI KABUPATEN JAWA BARAT</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Analisis Clustering K-Means Infrastruktur Telekomunikasi</p>", unsafe_allow_html=True)
+# --- 5. JUDUL ---
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>ANALISIS KUALITAS SINYAL & 4G JAWA BARAT</h1>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Filter data berdasarkan cluster terpilih
+# Filter data
 filtered_df = df_final[df_final['Cluster'] == selected_cluster]
 
-# --- KOLOM METRIK UTAMA ---
-col_m1, col_m2, col_m3 = st.columns(3)
-with col_m1:
-    st.metric("Jumlah Kabupaten", len(filtered_df))
-with col_m2:
-    st.metric("Total BTS (Cluster Ini)", f"{int(filtered_df['BTS'].sum())}")
-with col_m3:
-    st.metric("Rata-rata Sinyal Kuat", f"{filtered_df['SINYAL KUAT'].mean():.1f}")
+# --- 6. METRIK UTAMA (4 VARIABEL LENGKAP) ---
+# Menampilkan rata-rata performa cluster untuk ke-4 variabel
+m1, m2, m3, m4, m5 = st.columns(5)
+with m1:
+    st.metric("Total BTS", f"{int(filtered_df['BTS'].sum())}")
+with m2:
+    st.metric("Avg Sinyal Kuat", f"{filtered_df['SINYAL KUAT'].mean():.1f}")
+with m3:
+    st.metric("Avg Sinyal Lemah", f"{filtered_df['SINYAL LEMAH'].mean():.1f}")
+with m4:
+    st.metric("Avg No Sinyal", f"{filtered_df['TIDAK ADA SINYAL'].mean():.1f}")
+with m5:
+    st.metric("Avg 4G/LTE", f"{filtered_df['4G/LTE'].mean():.1f}")
 
-# --- NARASI INTERPRETASI (Poin Tinggi) ---
-st.subheader(f"📍 Analisis Hasil Opsi Cluster {selected_cluster}")
-
-interpretasi = {
-    0: ("Wilayah Infrastruktur Sangat Tinggi (Hub Utama)", "success", 
-        "Wilayah dengan jumlah BTS sangat masif (seperti Bogor/Cirebon). Memerlukan pemeliharaan rutin jaringan."),
-    1: ("Wilayah Sinyal Kuat & Gangguan Menengah", "info", 
-        "Sinyal kuat tersedia luas, namun sinyal lemah masih cukup banyak. Perlu optimasi kualitas antena."),
-    2: ("Wilayah Berkembang (BTS Menengah)", "info", 
-        "Memiliki jumlah infrastruktur yang sedang. Fokus pada peningkatan kapasitas jaringan secara bertahap."),
-    3: ("Wilayah dengan Tantangan Sinyal", "warning", 
-        "Sinyal lemah atau 'Tidak Ada Sinyal' lebih menonjol. Perlu pembangunan BTS penguat (Repeater)."),
-    4: ("Wilayah Cakupan Minimal / Terpencil", "error", 
-        "Wilayah dengan akses sinyal paling rendah. Prioritas utama pembangunan tower BTS baru.")
-}
-
-nama_cluster, status, deskripsi = interpretasi.get(selected_cluster)
-
-if status == "success": st.success(f"**Karakteristik:** {nama_cluster}\n\n**Kesimpulan:** {deskripsi}")
-elif status == "info": st.info(f"**Karakteristik:** {nama_cluster}\n\n**Kesimpulan:** {deskripsi}")
-elif status == "warning": st.warning(f"**Karakteristik:** {nama_cluster}\n\n**Kesimpulan:** {deskripsi}")
-else: st.error(f"**Karakteristik:** {nama_cluster}\n\n**Kesimpulan:** {deskripsi}")
-
-# --- VISUALISASI PLOTLY ---
+# --- 7. VISUALISASI BAR CHART (4 VARIABEL) ---
 st.markdown("---")
-col_chart, col_pie = st.columns([2, 1])
+st.subheader(f"📊 Perbandingan 4 Variabel Modeling di Cluster {selected_cluster}")
 
-with col_chart:
-    st.subheader("📊 Perbandingan Sinyal Kuat vs Lemah")
-    fig = px.bar(
-        filtered_df,
-        x='KABUPATEN JAWA BARAT',
-        y=['SINYAL KUAT', 'SINYAL LEMAH'],
-        barmode='group',
-        color_discrete_map={'SINYAL KUAT': '#2ecc71', 'SINYAL LEMAH': '#e74c3c'},
-        template="plotly_white"
-    )
-    fig.update_layout(hovermode="x unified")
-    st.plotly_chart(fig, use_container_width=True)
+# Menampilkan grafik batang untuk semua variabel modeling
+fig_bar = px.bar(
+    filtered_df,
+    x='KABUPATEN JAWA BARAT',
+    y=['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE'], 
+    barmode='group',
+    color_discrete_map={
+        'SINYAL KUAT': '#2ecc71',      # Hijau
+        'SINYAL LEMAH': '#f1c40f',     # Kuning
+        'TIDAK ADA SINYAL': '#e74c3c', # Merah
+        '4G/LTE': '#3498db'            # Biru
+    },
+    template="plotly_white"
+)
+fig_bar.update_layout(xaxis_title="Kabupaten/Kota", yaxis_title="Jumlah Desa")
+st.plotly_chart(fig_bar, use_container_width=True)
 
-with col_pie:
-    st.subheader("📶 Distribusi 4G/LTE")
-    fig_pie = px.pie(
-        filtered_df,
-        values='4G/LTE',
-        names='KABUPATEN JAWA BARAT',
-        hole=0.4,
-        color_discrete_sequence=px.colors.qualitative.Safe
-    )
-    st.plotly_chart(fig_pie, use_container_width=True)
-
-# --- TABEL DATA ---
+# --- 8. TABEL DETAIL ---
 st.markdown("---")
-st.subheader("📋 Detail Data Cluster")
-st.dataframe(filtered_df.drop(columns=['Cluster']), use_container_width=True)
-
-st.caption("Dibuat oleh Kelompok 7 - Tugas Analisis Data K-Means")
+st.subheader("📋 Tabel Data Cluster")
+st.dataframe(
+    filtered_df[['KABUPATEN JAWA BARAT', 'BTS', 'SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']], 
+    use_container_width=True
+)
