@@ -1,256 +1,277 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import matplotlib.pyplot as plt
-import seaborn as sns
+import plotly.graph_objects as go
 import folium
 from streamlit_folium import st_folium
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-# --- 1. KONFIGURASI HALAMAN ---
+# --- 1. SETUP & KONFIGURASI HALAMAN ---
 st.set_page_config(
-    page_title="Dashboard Sinyal Jabar Kelompok 7",
+    page_title="Dashboard Sinyal Jawa Barat",
     page_icon="📡",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# --- 2. STYLE TAMPILAN (CSS) ---
+# --- 2. CSS CUSTOM (UNTUK MEMPERCANTIK TAMPILAN) ---
 st.markdown("""
-    <style>
-    .stApp { background-color: #f8f9fa; }
-    
-    /* Warna angka metrik */
-    [data-testid="stMetricValue"] {
-        color: #1E3A8A;
-        font-weight: bold;
+<style>
+    /* Background utama */
+    .stApp {
+        background-color: #f4f6f9;
     }
     
-    /* Warna label metrik */
-    [data-testid="stMetricLabel"] {
-        color: #333333;
+    /* Styling Header */
+    h1, h2, h3 {
+        color: #0f172a;
+        font-family: 'Sans-serif';
     }
-
-    /* Kotak Metrik */
-    [data-testid="stMetric"] {
+    
+    /* Styling Metrics (Kotak Angka) */
+    div[data-testid="stMetric"] {
+        background-color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        border-left: 5px solid #3b82f6;
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        color: #64748b;
+        font-size: 14px;
+    }
+    
+    div[data-testid="stMetricValue"] {
+        color: #0f172a;
+        font-size: 24px;
+        font-weight: 700;
+    }
+    
+    /* Styling Sidebar */
+    section[data-testid="stSidebar"] {
         background-color: #ffffff;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #e0e0e0;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+        border-right: 1px solid #e2e8f0;
     }
     
-    /* Tabel */
-    .stDataFrame {
-        color: #000000;
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background-color: white;
+        border-radius: 8px;
     }
-    </style>
-    """, unsafe_allow_html=True)
+</style>
+""", unsafe_allow_html=True)
 
-# --- 3. DICTIONARY KOORDINAT JAWA BARAT (MANUAL) ---
-# Koordinat ini ditambahkan manual karena tidak ada di dataset asli
+# --- 3. DATA KOORDINAT JAWA BARAT (MANUAL) ---
 coords_jabar = {
-    "KABUPATEN BOGOR": [-6.5518, 106.6291],
-    "KABUPATEN SUKABUMI": [-7.0601, 106.7214],
-    "KABUPATEN CIANJUR": [-6.8205, 107.1416],
-    "KABUPATEN BANDUNG": [-7.0253, 107.5197],
-    "KABUPATEN GARUT": [-7.2279, 107.9087],
-    "KABUPATEN TASIKMALAYA": [-7.3506, 108.1065],
-    "KABUPATEN CIAMIS": [-7.3274, 108.3542],
-    "KABUPATEN KUNINGAN": [-6.9775, 108.4862],
-    "KABUPATEN CIREBON": [-6.7372, 108.5507],
-    "KABUPATEN MAJALENGKA": [-6.8371, 108.2274],
-    "KABUPATEN SUMEDANG": [-6.8385, 107.9272],
-    "KABUPATEN INDRAMAYU": [-6.4429, 108.1738],
-    "KABUPATEN SUBANG": [-6.5716, 107.7587],
-    "KABUPATEN PURWAKARTA": [-6.5561, 107.4426],
-    "KABUPATEN KARAWANG": [-6.3195, 107.3060],
-    "KABUPATEN BEKASI": [-6.2416, 107.1456],
-    "KABUPATEN BANDUNG BARAT": [-6.8437, 107.5029],
-    "KABUPATEN PANGANDARAN": [-7.6976, 108.4975],
-    "KOTA BOGOR": [-6.5971, 106.7991],
-    "KOTA SUKABUMI": [-6.9277, 106.9300],
-    "KOTA BANDUNG": [-6.9175, 107.6191],
-    "KOTA CIREBON": [-6.7320, 108.5523],
-    "KOTA BEKASI": [-6.2383, 106.9756],
-    "KOTA DEPOK": [-6.4025, 106.7942],
-    "KOTA CIMAHI": [-6.8715, 107.5457],
-    "KOTA TASIKMALAYA": [-7.3274, 108.2207],
+    "KABUPATEN BOGOR": [-6.5518, 106.6291], "KABUPATEN SUKABUMI": [-7.0601, 106.7214],
+    "KABUPATEN CIANJUR": [-6.8205, 107.1416], "KABUPATEN BANDUNG": [-7.0253, 107.5197],
+    "KABUPATEN GARUT": [-7.2279, 107.9087], "KABUPATEN TASIKMALAYA": [-7.3506, 108.1065],
+    "KABUPATEN CIAMIS": [-7.3274, 108.3542], "KABUPATEN KUNINGAN": [-6.9775, 108.4862],
+    "KABUPATEN CIREBON": [-6.7372, 108.5507], "KABUPATEN MAJALENGKA": [-6.8371, 108.2274],
+    "KABUPATEN SUMEDANG": [-6.8385, 107.9272], "KABUPATEN INDRAMAYU": [-6.4429, 108.1738],
+    "KABUPATEN SUBANG": [-6.5716, 107.7587], "KABUPATEN PURWAKARTA": [-6.5561, 107.4426],
+    "KABUPATEN KARAWANG": [-6.3195, 107.3060], "KABUPATEN BEKASI": [-6.2416, 107.1456],
+    "KABUPATEN BANDUNG BARAT": [-6.8437, 107.5029], "KABUPATEN PANGANDARAN": [-7.6976, 108.4975],
+    "KOTA BOGOR": [-6.5971, 106.7991], "KOTA SUKABUMI": [-6.9277, 106.9300],
+    "KOTA BANDUNG": [-6.9175, 107.6191], "KOTA CIREBON": [-6.7320, 108.5523],
+    "KOTA BEKASI": [-6.2383, 106.9756], "KOTA DEPOK": [-6.4025, 106.7942],
+    "KOTA CIMAHI": [-6.8715, 107.5457], "KOTA TASIKMALAYA": [-7.3274, 108.2207],
     "KOTA BANJAR": [-7.3685, 108.5310]
 }
 
-# --- 4. LOAD DATA, CLUSTERING, & PCA ---
+# --- 4. ENGINE DATA & MODELING (VALIDASI LOGIC) ---
 @st.cache_data
-def get_clustered_data():
-    df = pd.read_csv("Sinyal.csv")
-    
-    # Preprocessing
+def process_data_and_model():
+    # Load Data
+    try:
+        df = pd.read_csv("Sinyal.csv")
+    except FileNotFoundError:
+        return None, "File 'Sinyal.csv' tidak ditemukan."
+
+    # Fitur untuk Clustering
     features = ['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']
-    X = df[features]
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
     
-    # K-Means Clustering
+    # 1. Scaling (Penting agar valid dengan Notebook)
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(df[features])
+    
+    # 2. Modeling K-Means (Random State 42 agar hasil konsisten)
     kmeans = KMeans(n_clusters=4, random_state=42, n_init='auto')
     df['Cluster'] = kmeans.fit_predict(X_scaled)
     
-    # PCA untuk Scatter Plot (Reduksi ke 2 Dimensi)
+    # 3. PCA untuk Visualisasi 2D Scatter Plot
     pca = PCA(n_components=2)
     principal_components = pca.fit_transform(X_scaled)
     df['PCA1'] = principal_components[:, 0]
     df['PCA2'] = principal_components[:, 1]
     
-    # Mapping Koordinat
-    # Kita pastikan nama di CSV uppercase agar cocok dengan dictionary
+    # 4. Mapping Koordinat
     df['Temp_Name'] = df['KABUPATEN JAWA BARAT'].str.upper().str.strip()
     df['Latitude'] = df['Temp_Name'].map(lambda x: coords_jabar.get(x, [None, None])[0])
     df['Longitude'] = df['Temp_Name'].map(lambda x: coords_jabar.get(x, [None, None])[1])
     
-    # Hapus baris yang tidak punya koordinat (jika ada nama kota yang tidak match)
-    # df = df.dropna(subset=['Latitude', 'Longitude']) 
+    # 5. Total Traffic (Untuk Bubble Size)
+    df['Total_Sinyal'] = df['SINYAL KUAT'] + df['SINYAL LEMAH'] + df['TIDAK ADA SINYAL']
     
-    return df
+    # Hapus data yang tidak punya koordinat
+    df_clean = df.dropna(subset=['Latitude', 'Longitude'])
+    
+    return df_clean, None
 
-try:
-    df_final = get_clustered_data()
-except Exception as e:
-    st.error(f"Gagal memuat file Sinyal.csv. Error: {e}")
+# Load Data
+df_final, error_msg = process_data_and_model()
+
+if error_msg:
+    st.error(error_msg)
     st.stop()
 
-# --- 5. SIDEBAR ---
+# --- 5. SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.title("📡 Navigasi")
-    selected_cluster_view = st.selectbox("Filter Tampilan Cluster (Data/Bar):", ["Semua"] + sorted(list(df_final['Cluster'].unique())))
+    st.image("https://cdn-icons-png.flaticon.com/512/2910/2910793.png", width=80)
+    st.title("Sinyal Analytics")
+    st.write("Dashboard Monitoring Kualitas Jaringan Jawa Barat")
     st.markdown("---")
-    st.write("### 👥 Kelompok 7")
-    st.info("1. Naura Afnandita\n2. Maura Azzahra\n3. Mimma Desmaya\n4. Mustika Taulina")
-
-# --- 6. JUDUL ---
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>ANALISIS KUALITAS SINYAL & 4G JAWA BARAT</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Berdasarkan Pemodelan K-Means Clustering & Geospatial Analysis</p>", unsafe_allow_html=True)
-st.markdown("---")
-
-# Filter data untuk metrik dan tabel
-if selected_cluster_view != "Semua":
-    filtered_df = df_final[df_final['Cluster'] == selected_cluster_view]
-else:
-    filtered_df = df_final
-
-# --- 7. METRIK UTAMA ---
-m1, m2, m3, m4, m5 = st.columns(5)
-with m1:
-    st.metric("Total Wilayah", f"{len(filtered_df)}")
-with m2:
-    st.metric("Avg Sinyal Kuat", f"{filtered_df['SINYAL KUAT'].mean():.1f}")
-with m3:
-    st.metric("Avg Sinyal Lemah", f"{filtered_df['SINYAL LEMAH'].mean():.1f}")
-with m4:
-    st.metric("Avg No Sinyal", f"{filtered_df['TIDAK ADA SINYAL'].mean():.1f}")
-with m5:
-    st.metric("Avg 4G/LTE", f"{filtered_df['4G/LTE'].mean():.1f}")
-
-st.markdown("---")
-
-# --- 8. VISUALISASI MATPLOTLIB (PCA) & PLOTLY (BAR) ---
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.subheader("📍 Scatter Plot Cluster (PCA - Matplotlib)")
     
-    # Membuat Scatter Plot dengan Matplotlib
-    fig_pca, ax = plt.subplots(figsize=(8, 6))
+    # Filter
+    st.subheader("🔍 Filter Data")
+    cluster_options = sorted(df_final['Cluster'].unique())
+    selected_clusters = st.multiselect("Pilih Cluster:", cluster_options, default=cluster_options)
     
-    # Warna untuk setiap cluster
-    colors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f'] # Merah, Biru, Hijau, Kuning
-    
-    for cluster_id in sorted(df_final['Cluster'].unique()):
-        subset = df_final[df_final['Cluster'] == cluster_id]
-        ax.scatter(
-            subset['PCA1'], 
-            subset['PCA2'], 
-            c=colors[cluster_id], 
-            label=f'Cluster {cluster_id}',
-            edgecolor='k',
-            s=100,
-            alpha=0.7
-        )
-    
-    ax.set_title('Distribusi Cluster (Reduksi Dimensi PCA)')
-    ax.set_xlabel('Principal Component 1')
-    ax.set_ylabel('Principal Component 2')
-    ax.legend()
-    ax.grid(True, linestyle='--', alpha=0.5)
-    
-    st.pyplot(fig_pca)
-
-with col2:
-    st.subheader(f"📊 Karakteristik Sinyal")
-    # Tampilkan grafik bar (jika 'Semua' terlalu ramai, ambil rata-rata per cluster)
-    if selected_cluster_view == "Semua":
-        # Group by Cluster untuk ringkasan
-        grouped = df_final.groupby('Cluster')[['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']].mean().reset_index()
-        fig_bar = px.bar(
-            grouped,
-            x='Cluster',
-            y=['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE'],
-            barmode='group',
-            title="Rata-rata Sinyal per Cluster",
-            template="plotly_white"
-        )
-    else:
-        # Tampilkan detail per kota jika filter aktif
-        fig_bar = px.bar(
-            filtered_df,
-            x='KABUPATEN JAWA BARAT',
-            y=['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE'],
-            barmode='group',
-            template="plotly_white"
-        )
-    st.plotly_chart(fig_bar, use_container_width=True)
-
-# --- 9. PETA INTERAKTIF (FOLIUM) ---
-st.markdown("---")
-st.subheader("🗺️ Peta Persebaran Cluster di Jawa Barat")
-
-# Inisialisasi Peta (Center di Jawa Barat)
-m = folium.Map(location=[-6.9, 107.6], zoom_start=9)
-
-# Warna Marker sesuai Cluster (sama dengan scatter plot)
-folium_colors = ['red', 'blue', 'green', 'orange'] 
-
-# Loop data untuk membuat marker
-for index, row in df_final.iterrows():
-    # Cek jika lat/long valid (tidak NaN)
-    if pd.notnull(row['Latitude']) and pd.notnull(row['Longitude']):
+    if not selected_clusters:
+        st.warning("Mohon pilih minimal satu cluster.")
+        st.stop()
         
-        # Konten Popup HTML
+    filtered_df = df_final[df_final['Cluster'].isin(selected_clusters)]
+    
+    st.markdown("---")
+    st.write("© Kelompok 7")
+
+# --- 6. MAIN CONTENT ---
+
+# Header
+st.title("📡 Dashboard Analisis Sinyal & 4G")
+st.markdown("Pemodelan K-Means Clustering untuk mengelompokkan wilayah berdasarkan kualitas sinyal di Jawa Barat.")
+
+# KPI / Metrics
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.metric("Total Wilayah", f"{len(filtered_df)}")
+with col2:
+    st.metric("Total BTS", f"{int(filtered_df['BTS'].sum()):,}")
+with col3:
+    st.metric("Rata-rata 4G/LTE", f"{filtered_df['4G/LTE'].mean():.1f}")
+with col4:
+    st.metric("Avg Sinyal Kuat", f"{filtered_df['SINYAL KUAT'].mean():.1f}")
+
+st.markdown("---")
+
+# --- ROW 1: PETA & SCATTER PLOT ---
+row1_col1, row1_col2 = st.columns([1.3, 1])
+
+# A. PETA INTERAKTIF (BUBBLE MAP)
+with row1_col1:
+    st.subheader("🗺️ Peta Geografis Cluster")
+    
+    m = folium.Map(location=[-6.92, 107.60], zoom_start=9, tiles="CartoDB positron")
+    
+    # Warna Cluster
+    colors = {0: '#EF4444', 1: '#3B82F6', 2: '#10B981', 3: '#F59E0B'} # Merah, Biru, Hijau, Kuning
+    
+    for _, row in filtered_df.iterrows():
+        # Logic ukuran bubble
+        radius = row['Total_Sinyal'] / 600
+        radius = max(5, min(radius, 25))
+        
+        c_color = colors.get(row['Cluster'], 'gray')
+        
         popup_html = f"""
-        <div style="width:200px">
-            <b>{row['KABUPATEN JAWA BARAT']}</b><br>
-            <hr style="margin:5px 0">
-            <b>Cluster:</b> {row['Cluster']}<br>
-            <b>Sinyal Kuat:</b> {row['SINYAL KUAT']}<br>
-            <b>Sinyal Lemah:</b> {row['SINYAL LEMAH']}<br>
-            <b>No Signal:</b> {row['TIDAK ADA SINYAL']}<br>
-            <b>4G/LTE:</b> {row['4G/LTE']}
-        </div>
+        <b>{row['KABUPATEN JAWA BARAT']}</b><br>
+        Cluster: {row['Cluster']}<br>
+        Sinyal Kuat: {row['SINYAL KUAT']}<br>
+        4G: {row['4G/LTE']}
         """
         
-        folium.Marker(
+        folium.CircleMarker(
             location=[row['Latitude'], row['Longitude']],
-            popup=folium.Popup(popup_html, max_width=250),
-            tooltip=row['KABUPATEN JAWA BARAT'],
-            icon=folium.Icon(color=folium_colors[row['Cluster']], icon="signal", prefix="fa")
+            radius=radius,
+            color=c_color,
+            fill=True,
+            fill_color=c_color,
+            fill_opacity=0.7,
+            popup=folium.Popup(popup_html, max_width=200),
+            tooltip=f"{row['KABUPATEN JAWA BARAT']} (Cluster {row['Cluster']})"
         ).add_to(m)
+        
+    st_folium(m, width="100%", height=400)
+    st.caption("*Besar lingkaran merepresentasikan total trafik sinyal.")
 
-# Tampilkan Peta
-st_folium(m, width=1200, height=500)
+# B. SCATTER PLOT (PCA) - VALIDASI CLUSTERING
+with row1_col2:
+    st.subheader("📊 Sebaran Cluster (PCA)")
+    
+    fig_pca = px.scatter(
+        filtered_df,
+        x='PCA1',
+        y='PCA2',
+        color='Cluster',
+        hover_data=['KABUPATEN JAWA BARAT'],
+        color_discrete_map={
+            0: '#EF4444', 1: '#3B82F6', 2: '#10B981', 3: '#F59E0B'
+        },
+        title="Reduksi Dimensi (Validasi Pemisahan Cluster)",
+        template="plotly_white"
+    )
+    fig_pca.update_traces(marker=dict(size=12, line=dict(width=1, color='DarkSlateGrey')))
+    fig_pca.update_layout(height=400, margin=dict(l=0, r=0, t=30, b=0))
+    st.plotly_chart(fig_pca, use_container_width=True)
 
-# --- 10. TABEL DATA ---
 st.markdown("---")
-st.subheader("📋 Detail Data")
-st.dataframe(
-    filtered_df[['KABUPATEN JAWA BARAT', 'Cluster', 'BTS', 'SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']], 
-    use_container_width=True
+
+# --- ROW 2: BAR CHART PER KABUPATEN ---
+st.subheader("📈 Detail Kualitas Sinyal per Kabupaten")
+
+# Sorting data agar grafik rapi (Urut berdasarkan Cluster lalu Nama)
+plot_df = filtered_df.sort_values(by=['Cluster', 'SINYAL KUAT'], ascending=[True, False])
+
+# Membuat Grouped Bar Chart
+fig_bar = px.bar(
+    plot_df,
+    x='KABUPATEN JAWA BARAT',
+    y=['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE'],
+    barmode='group',
+    title="Komparasi Variabel Sinyal Tiap Kabupaten",
+    labels={'value': 'Jumlah / Frekuensi', 'variable': 'Kategori Sinyal'},
+    color_discrete_map={
+        'SINYAL KUAT': '#10B981',      # Hijau
+        'SINYAL LEMAH': '#F59E0B',     # Kuning/Orange
+        'TIDAK ADA SINYAL': '#EF4444', # Merah
+        '4G/LTE': '#3B82F6'            # Biru
+    },
+    template="plotly_white"
 )
+
+# Kustomisasi Layout Grafik
+fig_bar.update_layout(
+    xaxis_tickangle=-45,
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="right",
+        x=1
+    ),
+    height=500,
+    margin=dict(l=20, r=20, t=50, b=100)
+)
+
+st.plotly_chart(fig_bar, use_container_width=True)
+
+# --- ROW 3: DATAFRAME ---
+with st.expander("📂 Lihat Data Mentah"):
+    st.dataframe(
+        filtered_df[['KABUPATEN JAWA BARAT', 'Cluster', 'BTS', 'SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']],
+        use_container_width=True
+    )
