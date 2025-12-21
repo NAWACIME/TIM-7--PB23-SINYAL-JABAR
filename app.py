@@ -114,7 +114,7 @@ with st.sidebar:
     st.info("1. Naura Afnandita\n2. Maura Azzahra\n3. Mimma Desmaya\n4. Mustika Taulina")
 
 # --- 6. JUDUL ---
-st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>ANALISIS KUALITAS SINYAL & 4G JAWA BARAT</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #1E3A8A;'>CLUSTERING KUALITAS SINYAL & 4G JAWA BARAT</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center;'>Berdasarkan Pemodelan K-Means Clustering</p>", unsafe_allow_html=True)
 st.markdown("---")
 
@@ -243,3 +243,4 @@ with col_map_all:
         title="Peta Segmentasi Seluruh Wilayah Jawa Barat"
     )
     st.plotly_chart(fig_spatial, use_container_width=True)
+
