@@ -1,4 +1,8 @@
 streamlit
 pandas
 plotly
+matplotlib
+seaborn
+folium
+streamlit-folium
 scikit-learn
