@@ -235,7 +235,16 @@ with col_map_all:
         color="Cluster_Label",     # Warna berbeda tiap Cluster
         size="BTS",                # Ukuran titik berdasarkan jumlah BTS
         hover_name="KABUPATEN JAWA BARAT",
-        hover_data={'lat': False, 'lon': False, 'Cluster': True, '4G/LTE': True},
+        # DISINI DATA TAMBAHAN DITAMPILKAN
+        hover_data={
+            'lat': False, 
+            'lon': False, 
+            'Cluster': True, 
+            'SINYAL KUAT': True,     # Ditambahkan
+            'SINYAL LEMAH': True,    # Ditambahkan
+            'TIDAK ADA SINYAL': True,# Ditambahkan
+            '4G/LTE': True
+        },
         color_discrete_sequence=px.colors.qualitative.Bold, # Pilihan warna kontras
         zoom=7.2,
         center={"lat": -6.9175, "lon": 107.6191},
@@ -243,5 +252,3 @@ with col_map_all:
         title="Peta Segmentasi Seluruh Wilayah Jawa Barat"
     )
     st.plotly_chart(fig_spatial, use_container_width=True)
-
-
