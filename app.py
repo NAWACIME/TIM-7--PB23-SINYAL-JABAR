@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA  # <-- Ditambahkan untuk modul PCA
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(
@@ -151,10 +152,10 @@ fig_map = px.scatter_mapbox(
     filtered_df,
     lat="lat",
     lon="lon",
-    size=map_metric,           
-    color=map_metric,          
+    size=map_metric,            
+    color=map_metric,           
     color_continuous_scale=color_scale_map[map_metric],
-    size_max=30,               
+    size_max=30,                
     zoom=7.5,
     center={"lat": -6.9175, "lon": 107.6191}, 
     hover_name="KABUPATEN JAWA BARAT",
@@ -252,3 +253,50 @@ with col_map_all:
         title="Peta Segmentasi Seluruh Wilayah Jawa Barat"
     )
     st.plotly_chart(fig_spatial, use_container_width=True)
+
+# --- 12. (TAMBAHAN) VISUALISASI PCA ---
+st.markdown("---")
+st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🧩 Visualisasi PCA (Principal Component Analysis)</h2>", unsafe_allow_html=True)
+
+# 1. Menyiapkan Data untuk PCA (Re-scaling agar sesuai logic notebook)
+features_pca = ['SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']
+X_pca = df_final[features_pca]
+scaler_pca = StandardScaler()
+X_scaled_pca = scaler_pca.fit_transform(X_pca)
+
+# 2. Menjalankan PCA (Reduksi ke 2 Dimensi)
+pca = PCA(n_components=2)
+components = pca.fit_transform(X_scaled_pca)
+
+# 3. Membuat Dataframe untuk Visualisasi
+df_pca_viz = df_final.copy()
+df_pca_viz['PC1'] = components[:, 0]
+df_pca_viz['PC2'] = components[:, 1]
+df_pca_viz['Cluster_Label'] = df_pca_viz['Cluster'].astype(str) # String agar warna diskrit
+
+# 4. Menampilkan Plot
+col_pca_desc, col_pca_plot = st.columns([1, 3])
+
+with col_pca_desc:
+    st.info("""
+    **Analisis PCA:**
+    Grafik ini mengimplementasikan teknik PCA dari notebook untuk menyederhanakan 4 variabel sinyal menjadi 2 dimensi (PC1 & PC2).
+    
+    * **Titik yang berdekatan:** Wilayah dengan karakteristik sinyal yang mirip.
+    * **Warna:** Menunjukkan hasil clustering K-Means.
+    * **Tujuan:** Memvalidasi apakah cluster terpisah dengan baik secara visual.
+    """)
+    st.write(f"**Total Variance Explained:** {sum(pca.explained_variance_ratio_)*100:.2f}%")
+
+with col_pca_plot:
+    fig_pca = px.scatter(
+        df_pca_viz, 
+        x="PC1", 
+        y="PC2", 
+        color="Cluster_Label",
+        hover_name="KABUPATEN JAWA BARAT",
+        color_discrete_sequence=px.colors.qualitative.Bold,
+        title="Sebaran Cluster dalam 2 Dimensi PCA (PC1 vs PC2)",
+        template="plotly_white"
+    )
+    st.plotly_chart(fig_pca, use_container_width=True)
