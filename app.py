@@ -36,7 +36,6 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 3. DATA KOORDINAT JAWA BARAT (HARDCODED) ---
-# Kita perlu ini karena CSV tidak memiliki Lat/Long
 coords = {
     "BOGOR": [-6.5971, 106.8060],
     "SUKABUMI": [-6.9277, 106.9300],
@@ -80,12 +79,11 @@ def get_clustered_data():
     kmeans = KMeans(n_clusters=4, random_state=42, n_init='auto')
     df['Cluster'] = kmeans.fit_predict(X_scaled)
     
-    # 2. Mapping Koordinat (Lat/Lon)
-    # Mencocokkan Nama Kabupaten dengan Dictionary 'coords'
+    # 2. Mapping Koordinat
     df['lat'] = df['KABUPATEN JAWA BARAT'].map(lambda x: coords.get(x, [None, None])[0])
     df['lon'] = df['KABUPATEN JAWA BARAT'].map(lambda x: coords.get(x, [None, None])[1])
     
-    # Isi data kosong dengan rata-rata Jabar (fallback jika nama kota beda ejaan)
+    # Isi data kosong dengan rata-rata Jabar
     df['lat'] = df['lat'].fillna(-6.9175)
     df['lon'] = df['lon'].fillna(107.6191)
     
@@ -101,10 +99,10 @@ except Exception as e:
 with st.sidebar:
     st.title("📡 Navigasi")
     # Pilihan Cluster
-    selected_cluster = st.selectbox("Pilih Opsi Cluster:", sorted(df_final['Cluster'].unique()))
+    selected_cluster = st.selectbox("Pilih Opsi Cluster (Detail View):", sorted(df_final['Cluster'].unique()))
     
     st.markdown("---")
-    st.write("### ⚙️ Pengaturan Peta")
+    st.write("### ⚙️ Pengaturan Peta Detail")
     # Pilihan Variabel Peta
     map_metric = st.radio(
         "Tampilkan Sebaran Berdasarkan:",
@@ -136,9 +134,9 @@ with m4:
 with m5:
     st.metric("Avg 4G/LTE", f"{filtered_df['4G/LTE'].mean():.1f}")
 
-# --- 8. VISUALISASI PETA (BARU) ---
+# --- 8. VISUALISASI PETA DRILL-DOWN (SATU CLUSTER) ---
 st.markdown("---")
-st.subheader(f"🗺️ Peta Sebaran: {map_metric} (Cluster {selected_cluster})")
+st.subheader(f"🗺️ Peta Detail: {map_metric} (Hanya Cluster {selected_cluster})")
 
 # Logic Warna Peta agar dinamis
 color_scale_map = {
@@ -148,24 +146,22 @@ color_scale_map = {
     '4G/LTE': 'Blues'
 }
 
-# Membuat Peta Scatter Mapbox
+# Membuat Peta Scatter Mapbox (Filtered)
 fig_map = px.scatter_mapbox(
     filtered_df,
     lat="lat",
     lon="lon",
-    size=map_metric,           # Ukuran bulatan berdasarkan nilai sinyal
-    color=map_metric,          # Warna juga berdasarkan nilai sinyal
+    size=map_metric,           
+    color=map_metric,          
     color_continuous_scale=color_scale_map[map_metric],
-    size_max=30,               # Ukuran maksimal bulatan
+    size_max=30,               
     zoom=7.5,
-    center={"lat": -6.9175, "lon": 107.6191}, # Center di Jawa Barat
+    center={"lat": -6.9175, "lon": 107.6191}, 
     hover_name="KABUPATEN JAWA BARAT",
     hover_data={'lat': False, 'lon': False, 'BTS': True},
-    mapbox_style="carto-positron", # Style peta gratis (OpenStreetMap based)
-    title=f"Sebaran Geografis {map_metric} di Wilayah Cluster {selected_cluster}"
+    mapbox_style="carto-positron", 
+    title=f"Detail Sebaran {map_metric} di Cluster {selected_cluster}"
 )
-
-# Render Peta
 st.plotly_chart(fig_map, use_container_width=True)
 
 # --- 9. VISUALISASI GRAFIK BATANG & INTERPRETASI ---
@@ -198,11 +194,11 @@ with col_right:
     st.write(f"Menampilkan data untuk **{len(filtered_df)} kabupaten/kota** dalam cluster ini.")
     
     if avg_4g > 500:
-        st.success("✅ **Cluster Unggul**\nWilayah ini memiliki jangkauan 4G dan sinyal kuat yang sangat dominan. Cocok untuk layanan digital intensif.")
+        st.success("✅ **Cluster Unggul**\nWilayah ini memiliki jangkauan 4G dan sinyal kuat yang sangat dominan.")
     elif avg_no_sinyal > 50:
-        st.error("⚠️ **Cluster Prioritas**\nWilayah ini memiliki angka 'Tidak Ada Sinyal' yang cukup tinggi. Memerlukan penambahan BTS atau optimasi jaringan segera.")
+        st.error("⚠️ **Cluster Prioritas**\nWilayah ini memiliki angka 'Tidak Ada Sinyal' yang cukup tinggi.")
     else:
-        st.info("ℹ️ **Cluster Berkembang**\nWilayah dengan kualitas sinyal rata-rata. Cukup stabil namun masih memiliki potensi untuk ditingkatkan.")
+        st.info("ℹ️ **Cluster Berkembang**\nWilayah dengan kualitas sinyal rata-rata. Cukup stabil namun berpotensi ditingkatkan.")
 
 # --- 10. TABEL DATA ---
 st.markdown("---")
@@ -211,3 +207,39 @@ st.dataframe(
     filtered_df[['KABUPATEN JAWA BARAT', 'Cluster', 'BTS', 'SINYAL KUAT', 'SINYAL LEMAH', 'TIDAK ADA SINYAL', '4G/LTE']], 
     use_container_width=True
 )
+
+# --- 11. (BARU) PETA VISUALISASI SPATIAL CLUSTERING (SEMUA DATA) ---
+st.markdown("---")
+st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>🌐 Spatial Clustering Plot (Sebaran Seluruh Cluster)</h2>", unsafe_allow_html=True)
+
+col_map_all, col_desc_all = st.columns([3, 1])
+
+with col_desc_all:
+    st.info("""
+    **Tentang Peta Ini:**
+    
+    * **Logika:** Menampilkan SEMUA kota di Jawa Barat sekaligus.
+    * **Warna Titik:** Berdasarkan ID Cluster (Setiap warna mewakili satu kelompok hasil K-Means).
+    * **Fungsi:** Melihat pola penyebaran wilayah (Segmentasi Geografis).
+    """)
+    st.write("Jika warna cluster tertentu berkumpul di satu area, itu menandakan adanya **autokorelasi spasial** (kemiripan karakteristik berdasarkan kedekatan lokasi).")
+
+with col_map_all:
+    # Konversi Cluster ke String agar warnanya diskrit (Categorical)
+    df_final['Cluster_Label'] = df_final['Cluster'].astype(str)
+    
+    fig_spatial = px.scatter_mapbox(
+        df_final,  # MENGGUNAKAN df_final (SEMUA DATA), bukan filtered_df
+        lat="lat",
+        lon="lon",
+        color="Cluster_Label",     # Warna berbeda tiap Cluster
+        size="BTS",                # Ukuran titik berdasarkan jumlah BTS
+        hover_name="KABUPATEN JAWA BARAT",
+        hover_data={'lat': False, 'lon': False, 'Cluster': True, '4G/LTE': True},
+        color_discrete_sequence=px.colors.qualitative.Bold, # Pilihan warna kontras
+        zoom=7.2,
+        center={"lat": -6.9175, "lon": 107.6191},
+        mapbox_style="carto-positron",
+        title="Peta Segmentasi Seluruh Wilayah Jawa Barat"
+    )
+    st.plotly_chart(fig_spatial, use_container_width=True)
